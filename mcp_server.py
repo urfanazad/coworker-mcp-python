@@ -1,10 +1,11 @@
 import os
 import asyncio
+import json
 from mcp.server.models import InitializationOptions
 from mcp.server import NotificationOptions, Server
 from mcp.server.stdio import stdio_server
 import mcp.types as types
-from server import fs_tools
+from server import fs_tools, extended_tools
 
 # Initialize the server
 server = Server("coworker-mcp")
@@ -29,15 +30,99 @@ async def handle_list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
-            name="scan_index",
-            description="Scan a directory and optionally hash files for indexing.",
+            name="read_file",
+            description="Read the contents of a file (safety capped at 1MB).",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "root": {"type": "string", "description": "The root directory to scan."},
-                    "hash_files": {"type": "boolean", "description": "Whether to compute SHA256 hashes for each file."},
+                    "path": {"type": "string", "description": "The path to the file to read."},
                 },
-                "required": ["root"],
+                "required": ["path"],
+            },
+        ),
+        types.Tool(
+            name="browse_web",
+            description="Fetch text content from a URL (web browsing).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "The URL to browse."},
+                },
+                "required": ["url"],
+            },
+        ),
+        types.Tool(
+            name="create_excel",
+            description="Create an Excel file (.xlsx) with provided data.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Destination path for the .xlsx file."},
+                    "data": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "List of rows (dictionaries) to write."
+                    },
+                },
+                "required": ["path", "data"],
+            },
+        ),
+        types.Tool(
+            name="create_word",
+            description="Create a Word document (.docx) with provided content.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Destination path for the .docx file."},
+                    "content": {"type": "string", "description": "Text content for the document."},
+                },
+                "required": ["path", "content"],
+            },
+        ),
+        types.Tool(
+            name="create_pdf",
+            description="Create a PDF document with provided content.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Destination path for the .pdf file."},
+                    "content": {"type": "string", "description": "Text content for the PDF."},
+                },
+                "required": ["path", "content"],
+            },
+        ),
+        types.Tool(
+            name="execute_python",
+            description="Execute Python code locally and get the result.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "The Python code to execute."},
+                },
+                "required": ["code"],
+            },
+        ),
+        types.Tool(
+            name="search_past_actions",
+            description="Search the audit logs for past filesystem activities.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search term for the logs."},
+                    "workspace_root": {"type": "string", "description": "The workspace root to search in."},
+                },
+                "required": ["query", "workspace_root"],
+            },
+        ),
+        types.Tool(
+            name="search_google_drive",
+            description="Search files in Google Drive (requires credentials.json).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search term for Drive."},
+                },
+                "required": ["query"],
             },
         ),
         types.Tool(
@@ -64,19 +149,6 @@ async def handle_list_tools() -> list[types.Tool]:
                 "required": ["plan", "workspace_root"],
             },
         ),
-        types.Tool(
-            name="restore",
-            description="Restore a file from the .trash folder.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "trash_item_path": {"type": "string", "description": "The path to the item in trash."},
-                    "restore_to": {"type": "string", "description": "The destination path to restore to."},
-                    "workspace_root": {"type": "string", "description": "The workspace root."},
-                },
-                "required": ["trash_item_path", "restore_to", "workspace_root"],
-            },
-        ),
     ]
 
 @server.call_tool()
@@ -88,21 +160,60 @@ async def handle_call_tool(
         return [types.TextContent(type="text", text="Missing arguments")]
 
     try:
+        # Standard FS Tools
         if name == "list_files":
             root = arguments.get("root")
             res = fs_tools.list_files(root, ALLOWED_ROOTS)
-            return [types.TextContent(type="text", text=str(res))]
-
-        elif name == "scan_index":
-            root = arguments.get("root")
-            hash_files = arguments.get("hash_files", False)
-            res = fs_tools.scan_index(root, ALLOWED_ROOTS, hash_files=hash_files)
             return [types.TextContent(type="text", text=str(res))]
 
         elif name == "read_file":
             path = arguments.get("path")
             res = fs_tools.read_file_safe(path, ALLOWED_ROOTS)
             return [types.TextContent(type="text", text=str(res))]
+
+        # Extended Tools
+        elif name == "browse_web":
+            url = arguments.get("url")
+            res = extended_tools.browse_web(url)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "create_excel":
+            path = arguments.get("path")
+            data = arguments.get("data")
+            # Enforce root safety for writes
+            fs_tools.enforce_within_roots(path, ALLOWED_ROOTS)
+            res = extended_tools.create_excel(path, data)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "create_word":
+            path = arguments.get("path")
+            content = arguments.get("content")
+            fs_tools.enforce_within_roots(path, ALLOWED_ROOTS)
+            res = extended_tools.create_word(path, content)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "create_pdf":
+            path = arguments.get("path")
+            content = arguments.get("content")
+            fs_tools.enforce_within_roots(path, ALLOWED_ROOTS)
+            res = extended_tools.create_pdf(path, content)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "execute_python":
+            code = arguments.get("code")
+            res = extended_tools.execute_python_code(code)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "search_past_actions":
+            query = arguments.get("query")
+            workspace_root = arguments.get("workspace_root")
+            res = extended_tools.search_audit_logs(query, workspace_root)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "search_google_drive":
+            query = arguments.get("query")
+            res = extended_tools.search_google_drive(query)
+            return [types.TextContent(type="text", text=res)]
 
         elif name == "organize_plan":
             root = arguments.get("root")
@@ -116,19 +227,6 @@ async def handle_call_tool(
             res = fs_tools.execute_plan(plan, ALLOWED_ROOTS, workspace_root)
             return [types.TextContent(type="text", text=str(res))]
 
-        elif name == "soft_delete":
-            path = arguments.get("path")
-            workspace_root = arguments.get("workspace_root")
-            res = fs_tools.soft_delete(path, ALLOWED_ROOTS, workspace_root)
-            return [types.TextContent(type="text", text=str(res))]
-
-        elif name == "restore":
-            trash_item_path = arguments.get("trash_item_path")
-            restore_to = arguments.get("restore_to")
-            workspace_root = arguments.get("workspace_root")
-            res = fs_tools.restore_from_trash(trash_item_path, restore_to, ALLOWED_ROOTS, workspace_root)
-            return [types.TextContent(type="text", text=str(res))]
-
         else:
             return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
 
@@ -136,14 +234,13 @@ async def handle_call_tool(
         return [types.TextContent(type="text", text=f"Error: {str(e)}")]
 
 async def main():
-    # Run the server using stdin/stdout streams
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
             write_stream,
             InitializationOptions(
                 server_name="coworker-mcp",
-                server_version="0.1.0",
+                server_version="0.2.0",
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
                     experimental_capabilities={},

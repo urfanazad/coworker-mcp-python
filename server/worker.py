@@ -4,24 +4,21 @@ import asyncio
 import json
 from .cp_store import CPStore
 from .fs_tools import (
-    scan_index,
-    list_files,
-    propose_organize_plan,
-    execute_plan,
     read_file_safe,
     plan_sha256,
     soft_delete,
     restore_from_trash,
+    enforce_within_roots,
+)
+from .extended_tools import (
+    search_audit_logs,
+    search_google_drive,
+    record_and_transcribe,
 )
 
-# JobType values (aligned with proto)
-SCAN_INDEX = 1
-LIST_FILES = 2
-READ_FILE = 3
-ORGANIZE_PLAN = 4
-EXECUTE_PLAN = 5
-SOFT_DELETE = 6
-RESTORE = 7
+SEARCH_ACTIONS = 13
+SEARCH_DRIVE = 14
+LISTEN_MEETING = 15
 
 
 class Worker:
@@ -103,6 +100,53 @@ class Worker:
                     workspace_root = params.get("workspace_root", roots[0] if roots else "")
                     out = restore_from_trash(trash_item, restore_to, roots, workspace_root=workspace_root)
                     self.store.put_result(job_id, json.dumps(out).encode("utf-8"), "application/json")
+
+                elif jtype == BROWSE_WEB:
+                    url = params.get("url", "")
+                    out = browse_web(url)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == CREATE_EXCEL:
+                    path = params.get("path", "")
+                    data = json.loads(params.get("data", "[]"))
+                    enforce_within_roots(path, roots)
+                    out = create_excel(path, data)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == CREATE_WORD:
+                    path = params.get("path", "")
+                    content = params.get("content", "")
+                    enforce_within_roots(path, roots)
+                    out = create_word(path, content)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == CREATE_PDF:
+                    path = params.get("path", "")
+                    content = params.get("content", "")
+                    enforce_within_roots(path, roots)
+                    out = create_pdf(path, content)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == EXECUTE_PYTHON:
+                    code = params.get("code", "")
+                    out = execute_python_code(code)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == SEARCH_ACTIONS:
+                    query = params.get("query", "")
+                    workspace_root = params.get("workspace_root", roots[0] if roots else "")
+                    out = search_audit_logs(query, workspace_root)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == SEARCH_DRIVE:
+                    query = params.get("query", "")
+                    out = search_google_drive(query)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
+
+                elif jtype == LISTEN_MEETING:
+                    duration = int(params.get("duration", "10"))
+                    out = record_and_transcribe(duration=duration)
+                    self.store.put_result(job_id, out.encode("utf-8"), "text/plain")
 
                 else:
                     raise RuntimeError(f"Unsupported job type: {jtype}")

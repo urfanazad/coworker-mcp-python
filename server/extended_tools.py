@@ -7,6 +7,17 @@ import xlsxwriter
 from docx import Document
 from fpdf import FPDF
 from typing import List, Dict, Any
+import time
+
+# Audio imports
+try:
+    import sounddevice as sd
+    from scipy.io import wavfile
+    import speech_recognition as sr
+    import numpy as np
+    AUDIO_SUPPORT = True
+except ImportError:
+    AUDIO_SUPPORT = False
 
 def browse_web(url: str) -> str:
     """Fetch and return text content from a URL."""
@@ -37,12 +48,10 @@ def create_excel(path: str, data: List[Dict[str, Any]]) -> str:
             workbook.close()
             return f"Created empty Excel file at {path}"
             
-        # Write Headers
         headers = list(data[0].keys())
         for col, header in enumerate(headers):
             worksheet.write(0, col, header)
             
-        # Write Data
         for row_idx, row_data in enumerate(data, start=1):
             for col_idx, header in enumerate(headers):
                 worksheet.write(row_idx, col_idx, str(row_data.get(header, "")))
@@ -68,9 +77,7 @@ def create_pdf(path: str, content: str) -> str:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("helvetica", size=12)
-        # Handle multi-line content
         for line in content.split('\n'):
-            # Use multi_cell for wrapping
             pdf.multi_cell(0, 10, txt=line)
         pdf.output(path)
         return f"Successfully created PDF file at {path}"
@@ -84,10 +91,9 @@ def execute_python_code(code: str) -> str:
         with open(temp_file, "w", encoding="utf-8") as f:
             f.write(code)
         
-        # Use current venv python if possible
         py_exec = os.path.join(os.getcwd(), "venv", "Scripts", "python.exe")
         if not os.path.exists(py_exec):
-            py_exec = "python" # Fallback
+            py_exec = "python"
 
         result = subprocess.run(
             [py_exec, temp_file],
@@ -111,7 +117,6 @@ def execute_python_code(code: str) -> str:
         return f"Error executing code: {str(e)}"
 
 def search_audit_logs(query: str, workspace_root: str) -> str:
-    """Search the (.coworker_audit.jsonl) file."""
     audit_path = os.path.join(workspace_root, ".coworker_audit.jsonl")
     if not os.path.exists(audit_path):
         return "No audit logs found in this workspace."
@@ -131,10 +136,50 @@ def search_audit_logs(query: str, workspace_root: str) -> str:
         return f"Error searching logs: {str(e)}"
 
 def search_google_drive(query: str) -> str:
-    """Stub for Google Drive searching. Requires credentials.json."""
     if not os.path.exists("credentials.json"):
         return ("Google Drive tool requires a 'credentials.json' file in the project root. "
                 "Please download it from Google Cloud Console (OAuth 2.0 Client ID) and place it here.")
-    
-    # Implementation would go here using google-api-python-client
     return "Google Drive search logic initialized, but authentication is required. Run 'python auth_gdrive.py' first."
+
+# --- MEETING ASSISTANT TOOLS ---
+
+def record_and_transcribe(duration: int = 10) -> str:
+    """Record audio and transcribe it in one go."""
+    if not AUDIO_SUPPORT:
+        return "Audio support is not available. Please install sounddevice, scipy, and SpeechRecognition."
+
+    fs = 44100  # Sample rate
+    temp_wav = "meeting_temp.wav"
+    
+    try:
+        # 1. Record
+        recording = sd.rec(int(duration * fs), samplerate=fs, channels=1)
+        # print("Recording...")
+        sd.wait()  # Wait until recording is finished
+        wavfile.write(temp_wav, fs, recording)
+        
+        # 2. Transcribe
+        r = sr.Recognizer()
+        with sr.AudioFile(temp_wav) as source:
+            audio_data = r.record(source)
+            # Use Google's free recognizer
+            text = r.recognize_google(audio_data)
+        
+        if os.path.exists(temp_wav):
+            os.remove(temp_wav)
+            
+        return f"Transcript: {text}"
+    except Exception as e:
+        if os.path.exists(temp_wav):
+            os.remove(temp_wav)
+        return f"Meeting Assistant Error: {str(e)}"
+
+def list_audio_devices() -> str:
+    """List available audio input devices."""
+    if not AUDIO_SUPPORT:
+        return "Audio support not enabled."
+    try:
+        devices = sd.query_devices()
+        return str(devices)
+    except Exception as e:
+        return str(e)

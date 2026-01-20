@@ -1,8 +1,25 @@
 const out = document.getElementById("out");
 const rootInput = document.getElementById("root");
 const filePathInput = document.getElementById("filePath");
+const webUrlInput = document.getElementById("webUrl");
+const docContent = document.getElementById("docContent");
+const pyCodeInput = document.getElementById("pyCode");
 
 let lastPlanJobId = null;
+
+// Tab management
+document.getElementById("tabFiles").onclick = () => {
+  document.getElementById("viewFiles").style.display = "block";
+  document.getElementById("viewWeb").style.display = "none";
+  document.getElementById("tabFiles").className = "tab active";
+  document.getElementById("tabWeb").className = "tab";
+};
+document.getElementById("tabWeb").onclick = () => {
+  document.getElementById("viewFiles").style.display = "none";
+  document.getElementById("viewWeb").style.display = "block";
+  document.getElementById("tabFiles").className = "tab";
+  document.getElementById("tabWeb").className = "tab active";
+};
 
 async function getOptions() {
   const opts = await chrome.storage.local.get(["allowed_roots"]);
@@ -12,7 +29,7 @@ async function getOptions() {
 async function submitJob(type, params, approval_token = null) {
   const { allowed_roots } = await getOptions();
   const body = {
-    dedupe_key: `${type}:${JSON.stringify(params)}:${allowed_roots.join(",")}:${approval_token ? "w" : "r"}`,
+    dedupe_key: `${type}:${Date.now()}:${Math.random()}`, // Non-deduping for UI convenience
     type,
     allowed_roots,
     params
@@ -25,14 +42,16 @@ async function submitJob(type, params, approval_token = null) {
 }
 
 async function poll(jobId) {
+  out.textContent = "Working on job " + jobId + "...";
   for (let i = 0; i < 60; i++) {
     const r = await chrome.runtime.sendMessage({ type: "GET_JOB", job_id: jobId });
     if (!r.ok) throw new Error(r.error);
     const j = r.data;
-    if (j.status === 3 || j.status === 4) return j; // SUCCEEDED/FAILED
-    await new Promise(res => setTimeout(res, 500));
+    if (j.status === 3) return j; // SUCCEEDED
+    if (j.status === 4) throw new Error("Job failed: " + (j.error_message || "Unknown error"));
+    await new Promise(res => setTimeout(res, 800));
   }
-  throw new Error("Timeout waiting for job");
+  throw new Error("Timeout waiting for job.");
 }
 
 async function getResult(jobId) {
@@ -41,68 +60,58 @@ async function getResult(jobId) {
   return r.data;
 }
 
-document.getElementById("btnList").onclick = async () => {
+async function runTool(type, params, approvalToken = null) {
   try {
-    const root = rootInput.value.trim();
-    const jobId = await submitJob(2, { root });
-    const job = await poll(jobId);
+    const jobId = await submitJob(type, params, approvalToken);
+    await poll(jobId);
     const res = await getResult(jobId);
-    out.textContent = JSON.stringify({ job, result: res }, null, 2);
-  } catch (e) { out.textContent = String(e); }
-};
+    if (res.content_type === "application/json") {
+      out.textContent = JSON.stringify(JSON.parse(atob(res.bytes_base64)), null, 2);
+    } else {
+      out.textContent = atob(res.bytes_base64);
+    }
+    return jobId;
+  } catch (e) {
+    out.textContent = "Error: " + e.message;
+  }
+}
 
-document.getElementById("btnScan").onclick = async () => {
-  try {
-    const root = rootInput.value.trim();
-    const jobId = await submitJob(1, { root, hash_files: "false" });
-    const job = await poll(jobId);
-    const res = await getResult(jobId);
-    out.textContent = JSON.stringify({ job, result: res }, null, 2);
-  } catch (e) { out.textContent = String(e); }
-};
+// Event Listeners
+document.getElementById("btnList").onclick = () => runTool(2, { root: rootInput.value });
+document.getElementById("btnScan").onclick = () => runTool(1, { root: rootInput.value, hash_files: "false" });
 
 document.getElementById("btnPlan").onclick = async () => {
-  try {
-    const root = rootInput.value.trim();
-    const jobId = await submitJob(4, { root, policy: "by_ext" });
-    lastPlanJobId = jobId;
-    const job = await poll(jobId);
-    const res = await getResult(jobId);
-    out.textContent = JSON.stringify({ lastPlanJobId, job, result: res }, null, 2);
-  } catch (e) { out.textContent = String(e); }
+  lastPlanJobId = await runTool(4, { root: rootInput.value, policy: "by_ext" });
 };
 
 document.getElementById("btnExecute").onclick = async () => {
-  try {
-    if (!lastPlanJobId) throw new Error("Run 'Propose organize plan' first.");
-
-    const approveResp = await chrome.runtime.sendMessage({
-      type: "APPROVE",
-      body: { plan_job_id: lastPlanJobId, ttl_seconds: 120 }
-    });
-    if (!approveResp.ok) throw new Error(approveResp.error);
-
-    const approval_token = approveResp.data.approval_token;
-    const root = rootInput.value.trim();
-
-    const execJobId = await submitJob(
-      5,
-      { plan_job_id: lastPlanJobId, workspace_root: root },
-      approval_token
-    );
-
-    const job = await poll(execJobId);
-    const res = await getResult(execJobId);
-    out.textContent = JSON.stringify({ approved: approveResp.data, execJobId, job, result: res }, null, 2);
-  } catch (e) { out.textContent = String(e); }
+  if (!lastPlanJobId) { out.textContent = "Submit a plan first."; return; }
+  const approveResp = await chrome.runtime.sendMessage({
+    type: "APPROVE",
+    body: { plan_job_id: lastPlanJobId, ttl_seconds: 120 }
+  });
+  if (!approveResp.ok) { out.textContent = "Approval failed: " + approveResp.error; return; }
+  await runTool(5, { plan_job_id: lastPlanJobId, workspace_root: rootInput.value }, approveResp.data.approval_token);
 };
 
-document.getElementById("btnRead").onclick = async () => {
-  try {
-    const path = filePathInput.value.trim();
-    const jobId = await submitJob(3, { path, max_bytes: "1000000" });
-    const job = await poll(jobId);
-    const res = await getResult(jobId);
-    out.textContent = JSON.stringify({ job, result: res }, null, 2);
-  } catch (e) { out.textContent = String(e); }
+document.getElementById("btnRead").onclick = () => runTool(3, { path: filePathInput.value });
+
+// New Tools
+document.getElementById("btnBrowse").onclick = () => runTool(8, { url: webUrlInput.value });
+
+document.getElementById("btnWord").onclick = () => {
+  const path = filePathInput.value || (rootInput.value + "/document.docx");
+  runTool(10, { path, content: docContent.value });
+};
+
+document.getElementById("btnPdf").onclick = () => {
+  const path = filePathInput.value || (rootInput.value + "/document.pdf");
+  runTool(11, { path, content: docContent.value });
+};
+
+document.getElementById("btnPy").onclick = () => runTool(12, { code: pyCodeInput.value });
+
+document.getElementById("btnListen").onclick = () => {
+  const duration = document.getElementById("recSecs").value || 10;
+  runTool(15, { duration });
 };

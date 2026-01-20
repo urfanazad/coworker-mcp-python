@@ -1,33 +1,186 @@
 <!doctype html>
 <html>
+
 <head>
   <meta charset="utf-8" />
   <style>
-    body { font-family: sans-serif; width: 340px; padding: 10px; }
-    input { width: 100%; margin: 4px 0; }
-    button { width: 100%; margin: 6px 0; }
-    pre { white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; }
-    small { color: #666; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 400px;
+      padding: 15px;
+      background: #f8f9fa;
+      color: #333;
+    }
+
+    h3 {
+      color: #2c3e50;
+      margin-top: 0;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 5px;
+    }
+
+    .section {
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-weight: bold;
+      font-size: 0.85em;
+      display: block;
+      margin-top: 8px;
+      color: #555;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      margin: 4px 0;
+      padding: 6px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+
+    textarea {
+      height: 60px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    button {
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #3498db;
+      color: white;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    button.secondary {
+      background: #95a5a6;
+    }
+
+    button.secondary:hover {
+      background: #7f8c8d;
+    }
+
+    button.important {
+      background: #e67e22;
+    }
+
+    button.important:hover {
+      background: #d35400;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow: auto;
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    small {
+      color: #666;
+      font-size: 0.8em;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 6px;
+      text-align: center;
+      background: #ddd;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8em;
+    }
+
+    .tab.active {
+      background: white;
+      font-weight: bold;
+      color: #3498db;
+      border-top: 2px solid #3498db;
+    }
   </style>
 </head>
+
 <body>
-  <h3>Coworker MCP</h3>
-  <small>Configure Allowed Roots in Options.</small>
+  <h3>Coworker MCP Pro</h3>
 
-  <label>Workspace root</label>
-  <input id="root" placeholder="e.g. C:\\Users\\you\\Workbox or /Users/you/Workbox" />
+  <div class="tabs">
+    <div class="tab active" id="tabFiles">Files System</div>
+    <div class="tab" id="tabWeb">Web & Tools</div>
+  </div>
 
-  <label>File path</label>
-  <input id="filePath" placeholder="e.g. /Users/you/Workbox/a.txt" />
+  <div id="viewFiles" class="section">
+    <label>Workspace root</label>
+    <input id="root" placeholder="C:\\Your\\Project" />
 
-  <button id="btnList">List files</button>
-  <button id="btnScan">Scan & index</button>
-  <button id="btnPlan">Propose organize plan</button>
-  <button id="btnExecute">Execute last plan (approval)</button>
-  <button id="btnRead">Read file (base64)</button>
+    <div class="grid">
+      <button id="btnList">List files</button>
+      <button id="btnScan">Scan & index</button>
+      <button id="btnPlan" class="secondary">Propose Plan</button>
+      <button id="btnExecute" class="important">Execute Plan</button>
+    </div>
 
-  <pre id="out"></pre>
+    <label>File path / Actions</label>
+    <input id="filePath" placeholder="Full path to file" />
+    <button id="btnRead">Read file content</button>
+  </div>
+
+  <div id="viewWeb" class="section" style="display:none">
+    <label>Browse URL</label>
+    <input id="webUrl" placeholder="https://example.com" />
+    <button id="btnBrowse">Browse Web</button>
+
+    <label>Create Document (Content)</label>
+    <textarea id="docContent" placeholder="Enter text for Word/PDF or JSON for Excel"></textarea>
+    <div class="grid">
+      <button id="btnWord">Create Word</button>
+      <button id="btnPdf">Create PDF</button>
+    </div>
+
+    <label>Meeting Assistant</label>
+    <div class="grid">
+      <input id="recSecs" type="number" value="10" title="Duration in seconds" />
+      <button id="btnListen" class="secondary">Listen & Transcribe</button>
+    </div>
+
+    <label>Execute Python</label>
+    <textarea id="pyCode" placeholder="print('Hello World')"></textarea>
+    <button id="btnPy" class="important">Run Python</button>
+  </div>
+
+  <pre id="out">Ready.</pre>
 
   <script src="popup.js"></script>
 </body>
+
 </html>

@@ -93,6 +93,14 @@ def tools(
                 "params": ["trash_item_path", "restore_to", "workspace_root"],
                 "requires_approval": True,
             },
+            {"name": "browse_web", "type": 8, "params": ["url"]},
+            {"name": "create_excel", "type": 9, "params": ["path", "data"]},
+            {"name": "create_word", "type": 10, "params": ["path", "content"]},
+            {"name": "create_pdf", "type": 11, "params": ["path", "content"]},
+            {"name": "execute_python", "type": 12, "params": ["code"]},
+            {"name": "search_past_actions", "type": 13, "params": ["query", "workspace_root"]},
+            {"name": "search_google_drive", "type": 14, "params": ["query"]},
+            {"name": "listen_meeting", "type": 15, "params": ["duration"]},
         ]
     }
 

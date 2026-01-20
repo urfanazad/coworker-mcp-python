@@ -11,3 +11,7 @@ google-auth-oauthlib
 xlsxwriter
 python-docx
 fpdf2
+sounddevice
+numpy
+scipy
+SpeechRecognition

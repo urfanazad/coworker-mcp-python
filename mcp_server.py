@@ -138,6 +138,16 @@ async def handle_list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="listen_to_meeting",
+            description="Listen to the microphone for a set duration and transcribe the speech.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "duration_seconds": {"type": "integer", "description": "How long to record (default: 10)."},
+                },
+            },
+        ),
+        types.Tool(
             name="execute_plan",
             description="Execute a pre-generated plan. WARNING: Real filesystem changes.",
             inputSchema={
@@ -213,6 +223,11 @@ async def handle_call_tool(
         elif name == "search_google_drive":
             query = arguments.get("query")
             res = extended_tools.search_google_drive(query)
+            return [types.TextContent(type="text", text=res)]
+
+        elif name == "listen_to_meeting":
+            duration = arguments.get("duration_seconds", 10)
+            res = extended_tools.record_and_transcribe(duration=duration)
             return [types.TextContent(type="text", text=res)]
 
         elif name == "organize_plan":

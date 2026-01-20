@@ -4,6 +4,10 @@ import asyncio
 import json
 from .cp_store import CPStore
 from .fs_tools import (
+    scan_index,
+    list_files,
+    propose_organize_plan,
+    execute_plan,
     read_file_safe,
     plan_sha256,
     soft_delete,
@@ -11,11 +15,29 @@ from .fs_tools import (
     enforce_within_roots,
 )
 from .extended_tools import (
+    browse_web,
+    create_excel,
+    create_word,
+    create_pdf,
+    execute_python_code,
     search_audit_logs,
     search_google_drive,
     record_and_transcribe,
 )
 
+# JobType values (aligned with proto/app.py)
+SCAN_INDEX = 1
+LIST_FILES = 2
+READ_FILE = 3
+ORGANIZE_PLAN = 4
+EXECUTE_PLAN = 5
+SOFT_DELETE = 6
+RESTORE = 7
+BROWSE_WEB = 8
+CREATE_EXCEL = 9
+CREATE_WORD = 10
+CREATE_PDF = 11
+EXECUTE_PYTHON = 12
 SEARCH_ACTIONS = 13
 SEARCH_DRIVE = 14
 LISTEN_MEETING = 15

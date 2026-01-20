@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: sans-serif; width: 340px; padding: 10px; }
+    input { width: 100%; margin: 4px 0; }
+    button { width: 100%; margin: 6px 0; }
+    pre { white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; }
+    small { color: #666; }
+  </style>
+</head>
+<body>
+  <h3>Coworker MCP</h3>
+  <small>Configure Allowed Roots in Options.</small>
+
+  <label>Workspace root</label>
+  <input id="root" placeholder="e.g. C:\\Users\\you\\Workbox or /Users/you/Workbox" />
+
+  <label>File path</label>
+  <input id="filePath" placeholder="e.g. /Users/you/Workbox/a.txt" />
+
+  <button id="btnList">List files</button>
+  <button id="btnScan">Scan & index</button>
+  <button id="btnPlan">Propose organize plan</button>
+  <button id="btnExecute">Execute last plan (approval)</button>
+  <button id="btnRead">Read file (base64)</button>
+
+  <pre id="out"></pre>
+
+  <script src="popup.js"></script>
+</body>
+</html>

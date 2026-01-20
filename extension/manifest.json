@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Coworker MCP",
+  "version": "0.1.0",
+  "description": "Browser UI for the local Coworker MCP server.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Coworker MCP", "default_popup": "popup.html" },
+  "options_page": "options.html"
+}

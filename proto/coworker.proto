@@ -1,0 +1,59 @@
+syntax = "proto3";
+package coworker.v1;
+
+enum JobType {
+  JOB_TYPE_UNSPECIFIED = 0;
+  JOB_TYPE_SCAN_INDEX = 1;
+  JOB_TYPE_LIST_FILES = 2;
+  JOB_TYPE_READ_FILE = 3;
+  JOB_TYPE_ORGANIZE_PLAN = 4;
+  JOB_TYPE_EXECUTE_PLAN = 5;
+  JOB_TYPE_SOFT_DELETE = 6;
+  JOB_TYPE_RESTORE = 7;
+}
+
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_QUEUED = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_SUCCEEDED = 3;
+  JOB_STATUS_FAILED = 4;
+  JOB_STATUS_CANCELED = 5;
+}
+
+message SubmitJobRequest {
+  string job_id = 1;
+  string dedupe_key = 2;
+  JobType type = 3;
+  repeated string allowed_roots = 4;
+  map<string, string> params = 5;
+  string approval_token = 6;
+}
+
+message SubmitJobResponse {
+  string job_id = 1;
+  JobStatus status = 2;
+  int64 accepted_at_unix_ms = 3;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+
+message Job {
+  string job_id = 1;
+  string dedupe_key = 2;
+  JobType type = 3;
+  JobStatus status = 4;
+
+  int64 created_at_unix_ms = 5;
+  int64 started_at_unix_ms = 6;
+  int64 finished_at_unix_ms = 7;
+
+  string error_message = 8;
+  int64 staleness_ms = 9;
+}
+
+message GetJobResponse {
+  Job job = 1;
+}

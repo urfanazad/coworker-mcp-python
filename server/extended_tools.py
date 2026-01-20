@@ -9,15 +9,12 @@ from fpdf import FPDF
 from typing import List, Dict, Any
 import time
 
-# Audio imports
+# Transcription import
 try:
-    import sounddevice as sd
-    from scipy.io import wavfile
     import speech_recognition as sr
-    import numpy as np
-    AUDIO_SUPPORT = True
+    TRANSCRIPTION_SUPPORT = True
 except ImportError:
-    AUDIO_SUPPORT = False
+    TRANSCRIPTION_SUPPORT = False
 
 def browse_web(url: str) -> str:
     """Fetch and return text content from a URL."""
@@ -143,43 +140,50 @@ def search_google_drive(query: str) -> str:
 
 # --- MEETING ASSISTANT TOOLS ---
 
-def record_and_transcribe(duration: int = 10) -> str:
-    """Record audio and transcribe it in one go."""
-    if not AUDIO_SUPPORT:
-        return "Audio support is not available. Please install sounddevice, scipy, and SpeechRecognition."
+def record_audio_powershell(path: str, duration: int) -> None:
+    """Record audio using Windows MCI via PowerShell (no dependencies)."""
+    ps_script = f'''
+    Add-Type -TypeDefinition @"
+    using System;
+    using System.Runtime.InteropServices;
+    public class VoiceRecorder {{
+        [DllImport("winmm.dll", EntryPoint = "mciSendStringA", CharSet = CharSet.Ansi)]
+        public static extern int mciSendString(string lpszCommand, string lpszReturnString, int cchReturn, int hwndCallback);
+    }}
+    "@
+    $ret = [VoiceRecorder]::mciSendString("open new type waveaudio alias capture", $null, 0, 0)
+    $ret = [VoiceRecorder]::mciSendString("record capture", $null, 0, 0)
+    Start-Sleep -Seconds {duration}
+    $ret = [VoiceRecorder]::mciSendString("save capture {path}", $null, 0, 0)
+    $ret = [VoiceRecorder]::mciSendString("close capture", $null, 0, 0)
+    '''
+    subprocess.run(["powershell", "-Command", ps_script], check=True)
 
-    fs = 44100  # Sample rate
-    temp_wav = "meeting_temp.wav"
+def record_and_transcribe(duration: int = 10) -> str:
+    """Record audio and transcribe it in one go (No-dependency recorder on Windows)."""
+    if not TRANSCRIPTION_SUPPORT:
+        return "Transcription support (SpeechRecognition) is not installed."
+
+    temp_wav = os.path.join(os.getcwd(), "meeting_temp.wav")
     
     try:
-        # 1. Record
-        recording = sd.rec(int(duration * fs), samplerate=fs, channels=1)
-        # print("Recording...")
-        sd.wait()  # Wait until recording is finished
-        wavfile.write(temp_wav, fs, recording)
+        # 1. Record using PowerShell (built-in Windows solution)
+        record_audio_powershell(temp_wav, duration)
         
+        if not os.path.exists(temp_wav) or os.path.getsize(temp_wav) < 100:
+             return "Recording failed: Audio file was not created or is empty. Please check your microphone settings."
+
         # 2. Transcribe
         r = sr.Recognizer()
         with sr.AudioFile(temp_wav) as source:
             audio_data = r.record(source)
-            # Use Google's free recognizer
             text = r.recognize_google(audio_data)
         
         if os.path.exists(temp_wav):
             os.remove(temp_wav)
             
-        return f"Transcript: {text}"
+        return f"Transcript ({duration}s): {text}"
     except Exception as e:
         if os.path.exists(temp_wav):
             os.remove(temp_wav)
         return f"Meeting Assistant Error: {str(e)}"
-
-def list_audio_devices() -> str:
-    """List available audio input devices."""
-    if not AUDIO_SUPPORT:
-        return "Audio support not enabled."
-    try:
-        devices = sd.query_devices()
-        return str(devices)
-    except Exception as e:
-        return str(e)

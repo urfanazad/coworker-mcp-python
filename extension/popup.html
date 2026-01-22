@@ -3,182 +3,349 @@
 
 <head>
   <meta charset="utf-8" />
+  <title>Coworker Pro</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.4);
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --danger: #ef4444;
+      --success: #22c55e;
+    }
+
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      width: 400px;
-      padding: 15px;
-      background: #f8f9fa;
-      color: #333;
+      font-family: 'Outfit', sans-serif;
+      width: 360px;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
     }
 
-    h3 {
-      color: #2c3e50;
-      margin-top: 0;
-      border-bottom: 2px solid #3498db;
-      padding-bottom: 5px;
-    }
-
-    .section {
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      margin-bottom: 12px;
-    }
-
-    label {
-      font-weight: bold;
-      font-size: 0.85em;
-      display: block;
-      margin-top: 8px;
-      color: #555;
-    }
-
-    input,
-    textarea {
-      width: 100%;
-      margin: 4px 0;
-      padding: 6px;
-      box-sizing: border-box;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-
-    textarea {
-      height: 60px;
-      font-family: monospace;
-      font-size: 11px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    button {
-      padding: 8px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      background: #3498db;
-      color: white;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      background: #2980b9;
-    }
-
-    button.secondary {
-      background: #95a5a6;
-    }
-
-    button.secondary:hover {
-      background: #7f8c8d;
-    }
-
-    button.important {
-      background: #e67e22;
-    }
-
-    button.important:hover {
-      background: #d35400;
-    }
-
-    pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 200px;
-      overflow: auto;
-      background: #2c3e50;
-      color: #ecf0f1;
-      padding: 10px;
-      border-radius: 4px;
-      font-size: 11px;
-    }
-
-    small {
-      color: #666;
-      font-size: 0.8em;
-    }
-
-    .tabs {
+    .container {
+      padding: 20px;
       display: flex;
-      gap: 4px;
-      margin-bottom: 10px;
+      flex-direction: column;
+      gap: 20px;
     }
 
-    .tab {
-      flex: 1;
-      padding: 6px;
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.4;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.4;
+      }
+    }
+
+    .hero-card {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
       text-align: center;
-      background: #ddd;
-      border-top-left-radius: 4px;
-      border-top-right-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8em;
+      position: relative;
+      overflow: hidden;
     }
 
-    .tab.active {
-      background: white;
-      font-weight: bold;
-      color: #3498db;
-      border-top: 2px solid #3498db;
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .mic-btn {
+      position: relative;
+      z-index: 1;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      box-shadow: 0 0 25px var(--accent-glow);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .mic-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 35px var(--accent-glow);
+    }
+
+    .mic-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+
+    .hero-card h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .hero-card p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .settings-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-dim);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .settings-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+    }
+
+    .activity-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .activity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .activity-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin: 0;
+    }
+
+    .hide-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-dim);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .hide-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--accent);
+    }
+
+    .hide-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+
+    .activity-box {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      min-height: 80px;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      line-height: 1.5;
+      transition: all 0.3s ease;
+    }
+
+    .activity-box.hidden {
+      opacity: 0;
+      height: 0;
+      min-height: 0;
+      max-height: 0;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .recording-overlay {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(15, 23, 42, 0.9);
+      z-index: 10;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .wave {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 40px;
+      margin-bottom: 20px;
+    }
+
+    .bar {
+      width: 4px;
+      height: 10px;
+      background: var(--accent);
+      border-radius: 2px;
+      animation: pulse-wave 1s ease-in-out infinite;
+    }
+
+    .bar:nth-child(2) {
+      animation-delay: 0.1s;
+    }
+
+    .bar:nth-child(3) {
+      animation-delay: 0.2s;
+    }
+
+    .bar:nth-child(4) {
+      animation-delay: 0.3s;
+    }
+
+    .bar:nth-child(5) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes pulse-wave {
+
+      0%,
+      100% {
+        height: 10px;
+      }
+
+      50% {
+        height: 30px;
+      }
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
     }
   </style>
 </head>
 
 <body>
-  <h3>Coworker MCP Pro</h3>
+  <div class="container">
+    <header>
+      <div style="font-weight: 600; font-size: 14px;">COWORKER <span style="color: var(--accent)">PRO</span></div>
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        SECURE
+      </div>
+    </header>
 
-  <div class="tabs">
-    <div class="tab active" id="tabFiles">Files System</div>
-    <div class="tab" id="tabWeb">Web & Tools</div>
-  </div>
-
-  <div id="viewFiles" class="section">
-    <label>Workspace root</label>
-    <input id="root" placeholder="C:\\Your\\Project" />
-
-    <div class="grid">
-      <button id="btnList">List files</button>
-      <button id="btnScan">Scan & index</button>
-      <button id="btnPlan" class="secondary">Propose Plan</button>
-      <button id="btnExecute" class="important">Execute Plan</button>
+    <div class="hero-card">
+      <button class="mic-btn" id="btnListen">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+          <path
+            d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+        </svg>
+      </button>
+      <h2>Meeting Assistant</h2>
+      <p>Listen, transcribe, and organize.</p>
     </div>
 
-    <label>File path / Actions</label>
-    <input id="filePath" placeholder="Full path to file" />
-    <button id="btnRead">Read file content</button>
-  </div>
-
-  <div id="viewWeb" class="section" style="display:none">
-    <label>Browse URL</label>
-    <input id="webUrl" placeholder="https://example.com" />
-    <button id="btnBrowse">Browse Web</button>
-
-    <label>Create Document (Content)</label>
-    <textarea id="docContent" placeholder="Enter text for Word/PDF or JSON for Excel"></textarea>
-    <div class="grid">
-      <button id="btnWord">Create Word</button>
-      <button id="btnPdf">Create PDF</button>
+    <div class="activity-section">
+      <div class="activity-header">
+        <h3>Live Transcript</h3>
+        <button class="hide-btn" id="btnToggle">
+          <svg viewBox="0 0 24 24" id="eyeIcon">
+            <path
+              d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
+          </svg>
+          <span id="toggleText">HIDE</span>
+        </button>
+      </div>
+      <div class="activity-box" id="out">
+        AI Coworker is ready to assist. Click the microphone to start listening.
+      </div>
     </div>
 
-    <label>Meeting Assistant</label>
-    <div class="grid">
-      <input id="recSecs" type="number" value="10" title="Duration in seconds" />
-      <button id="btnListen" class="secondary">Listen & Transcribe</button>
+    <div class="controls">
+      <button class="settings-btn" id="btnOptions">Options</button>
     </div>
-
-    <label>Execute Python</label>
-    <textarea id="pyCode" placeholder="print('Hello World')"></textarea>
-    <button id="btnPy" class="important">Run Python</button>
   </div>
 
-  <pre id="out">Ready.</pre>
+  <div class="recording-overlay" id="overlay">
+    <div class="wave">
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+    <div style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">Listening...</div>
+    <div style="color: var(--text-dim); font-size: 12px; margin-bottom: 20px;" id="timer">10s remaining</div>
+    <button id="btnStop"
+      style="background: #ef4444; border: none; color: white; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); transition: all 0.2s;">STOP
+      LISTENING</button>
+  </div>
 
   <script src="popup.js"></script>
 </body>

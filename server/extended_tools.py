@@ -140,50 +140,170 @@ def search_google_drive(query: str) -> str:
 
 # --- MEETING ASSISTANT TOOLS ---
 
-def record_audio_powershell(path: str, duration: int) -> None:
-    """Record audio using Windows MCI via PowerShell (no dependencies)."""
-    ps_script = f'''
-    Add-Type -TypeDefinition @"
-    using System;
-    using System.Runtime.InteropServices;
-    public class VoiceRecorder {{
-        [DllImport("winmm.dll", EntryPoint = "mciSendStringA", CharSet = CharSet.Ansi)]
-        public static extern int mciSendString(string lpszCommand, string lpszReturnString, int cchReturn, int hwndCallback);
-    }}
-    "@
-    $ret = [VoiceRecorder]::mciSendString("open new type waveaudio alias capture", $null, 0, 0)
-    $ret = [VoiceRecorder]::mciSendString("record capture", $null, 0, 0)
-    Start-Sleep -Seconds {duration}
-    $ret = [VoiceRecorder]::mciSendString("save capture {path}", $null, 0, 0)
-    $ret = [VoiceRecorder]::mciSendString("close capture", $null, 0, 0)
-    '''
-    subprocess.run(["powershell", "-Command", ps_script], check=True)
+import ctypes
+import time
+
+def record_audio_native(path: str, duration: int) -> None:
+    """Record audio using Windows MCI directly via ctypes (No PowerShell overhead)."""
+    winmm = ctypes.windll.winmm
+    mciSendString = winmm.mciSendStringA
+    
+    # helper to send commands
+    def send(cmd):
+        return mciSendString(cmd.encode("ascii"), None, 0, 0)
+
+    try:
+        # 1. Setup
+        send("open new type waveaudio alias capture")
+        send("set capture bitspersample 16")
+        send("set capture samplespersec 16000")
+        send("set capture channels 1")
+        
+        # 2. Record
+        send("record capture")
+        time.sleep(duration)
+        
+        # 3. Save
+        # MCI requires forward slashes or escaped backslashes
+        save_path = path.replace("\\", "/")
+        send(f"save capture {save_path}")
+        
+    finally:
+        # 4. Cleanup
+        send("close capture")
 
 def record_and_transcribe(duration: int = 10) -> str:
-    """Record audio and transcribe it in one go (No-dependency recorder on Windows)."""
-    if not TRANSCRIPTION_SUPPORT:
-        return "Transcription support (SpeechRecognition) is not installed."
-
+    """Record audio and transcribe it using Gemini 2.0 Flash (audio understanding)."""
     temp_wav = os.path.join(os.getcwd(), "meeting_temp.wav")
+    t0 = time.time()
     
     try:
-        # 1. Record using PowerShell (built-in Windows solution)
-        record_audio_powershell(temp_wav, duration)
+        # 1. Record audio
+        record_audio_native(temp_wav, duration)
+        t1 = time.time()
+        print(f"[DEBUG] Audio Recording ({duration}s) took: {t1-t0:.2f}s")
         
-        if not os.path.exists(temp_wav) or os.path.getsize(temp_wav) < 100:
-             return "Recording failed: Audio file was not created or is empty. Please check your microphone settings."
+        if not os.path.exists(temp_wav) or os.path.getsize(temp_wav) < 1000:
+             return "Recording failed: Audio file was not created or is too small."
 
-        # 2. Transcribe
-        r = sr.Recognizer()
-        with sr.AudioFile(temp_wav) as source:
-            audio_data = r.record(source)
-            text = r.recognize_google(audio_data)
+        # 2. Read WAV file and encode to base64
+        with open(temp_wav, "rb") as audio_file:
+            audio_content = audio_file.read()
+            
+        import base64
+        audio_base64 = base64.b64encode(audio_content).decode('utf-8')
+        t2 = time.time()
+        print(f"[DEBUG] File Read & Base64 took: {t2-t1:.2f}s")
         
+        # 3. Use Gemini to transcribe the audio
+        api_key = os.getenv("GOOGLE_API_KEY")
+        
+        if not api_key:
+            if os.path.exists(temp_wav):
+                os.remove(temp_wav)
+            return "No GOOGLE_API_KEY found. Speech recognition requires an API key."
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
+        
+        payload = {
+            "contents": [{
+                "parts": [
+                    {
+                        "text": """You are an expert transcriber with AI noise cancellation.
+1. Listen carefully to the audio and filter out background noise, static, and echo.
+2. Detect the language automatically (supports ALL languages).
+3. Transcribe exactly what was said.
+4. If the audio is not in English, translate it to English in parentheses e.g. "Hola (Hello)".
+5. Only output the final text. Do not add commentary."""
+                    },
+                    {
+                        "inline_data": {
+                            "mime_type": "audio/wav",
+                            "data": audio_base64
+                        }
+                    }
+                ]
+            }]
+        }
+        
+        response = httpx.post(url, json=payload, timeout=30.0)
+        t3 = time.time()
+        print(f"[DEBUG] Transcription API took: {t3-t2:.2f}s | Total: {t3-t0:.2f}s")
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        # Clean up
         if os.path.exists(temp_wav):
             os.remove(temp_wav)
+        
+        # Extract transcript
+        if 'candidates' in result and len(result['candidates']) > 0:
+            transcript = result['candidates'][0]['content']['parts'][0]['text'].strip()
+            return f"Transcript ({duration}s): {transcript}"
+        else:
+            return "No speech detected. Please speak louder or closer to the microphone."
             
-        return f"Transcript ({duration}s): {text}"
     except Exception as e:
         if os.path.exists(temp_wav):
             os.remove(temp_wav)
         return f"Meeting Assistant Error: {str(e)}"
+
+# --- AI MEETING INSIGHTS ---
+
+def analyze_transcript_with_ai(transcript: str) -> str:
+    """Use Google Gemini REST API to generate smart meeting responses and insights."""
+    try:
+        # Get API key from environment
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            return "⚠️ No GOOGLE_API_KEY found. Set it in your environment to enable AI insights.\n\nGet your free key at: https://aistudio.google.com/apikey"
+        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={api_key}"
+        
+        # Logic to adjust depth based on input length
+        is_short = len(transcript.split()) < 20
+        
+        if is_short:
+             prompt = f"""You are an elite AI Meeting Coach. 
+TRANSCRIPT: "{transcript}"
+
+The user said something short. Provide a single, brilliant "PERFECT RESPONSE" to keep the flow. 
+Do not give analysis or questions unless absolutely necessary. Be extremely concise."""
+        else:
+            prompt = f"""You are an elite AI Meeting Coach (like Hedy AI). 
+Your goal is to help me WIN this meeting. Don't just summarize. 
+Analyze the dynamic, detect hidden concerns, and give me strategic advantages using the transcript below.
+
+Transcript: "{transcript}"
+
+Provide 3 specific sections:
+
+1. **🧠 STRATEGIC INSIGHT**: What is really happening here? (e.g., "They are hesitant about price," "You are losing their attention," "They seem excited about feature X").
+2. **❓ POWER QUESTIONS**: Give me 2 smart questions I should ask RIGHT NOW to take control or uncover deep needs.
+3. **💬 PERFECT RESPONSE**: A short, persuasive line I can say to move the conversation forward.
+
+Keep it short, punchy, and actionable. I am in the meeting right now."""
+
+        payload = {
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }]
+        }
+        
+        response = httpx.post(url, json=payload, timeout=30.0)
+        t1 = time.time()
+        print(f"[DEBUG] Gemini Analysis took: {t1-t0:.2f}s")
+        
+        response.raise_for_status()
+        data = response.json()
+        
+        if 'candidates' in data and len(data['candidates']) > 0:
+            text = data['candidates'][0]['content']['parts'][0]['text']
+            return text
+        else:
+            return "AI returned no response. Please try again."
+        
+    except Exception as e:
+        print(f"[DEBUG] Analysis Error: {e}")
+        return f"AI Analysis Error: {str(e)}"

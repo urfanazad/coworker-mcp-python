@@ -101,6 +101,7 @@ def tools(
             {"name": "search_past_actions", "type": 13, "params": ["query", "workspace_root"]},
             {"name": "search_google_drive", "type": 14, "params": ["query"]},
             {"name": "listen_meeting", "type": 15, "params": ["duration"]},
+            {"name": "ai_analyze", "type": 16, "params": ["transcript"]},
         ]
     }
 
